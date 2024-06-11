@@ -1,0 +1,25 @@
+version: '3'
+services:
+  node-forum-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: node-forum-container
+    ports:
+      - 5000:3000
+    depends_on:
+      mysql-service:
+        condition: service_healthy
+  mysql-service:
+    image: mysql:8.0.33
+    container_name: mysql-container
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+    ports:
+      - 3316:3316
+    volumes:
+      - "./setup.sql:/docker-entrypoint-initdb.d/1.sql"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
