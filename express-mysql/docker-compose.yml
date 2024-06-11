@@ -1,0 +1,52 @@
+# 도커 컴포즈 yml 파일 작성을 위한 버전 설정 (docker compose 프로그램의 자체 버전이 아님을 유의)
+version: '3'
+services:
+  # 노드 앱 서비스 이름 정하기
+  node-using-database-app-service:
+    # 이미지가 아니라 Dockerfile에서 빌드해서 이미지를 만드려면 build 옵션 주기
+    build:
+      context: .
+      dockerfile: Dockerfile # 직접 Dockerfile 이름 지정 가능
+    # 컨테이너 이름 직접 지정 가능
+    container_name: node-using-database-app-container
+    ports:
+      - 1234:3000 # 노출할 포트 (-p 8080:3000과 같은 의미)
+    # 의존하는 서비스 지정
+    depends_on:
+      mysql-service:
+        # 서비스가 제대로 실행되는 시점(서비스가 healthy한 상황)에 서비스(=노드 앱 컨테이너)가 작동할 수 있음을 명시
+        condition: service_healthy
+      redis-service:
+        condition: service_healthy
+  # MySQL 서비스 이름 정하기
+  mysql-service:
+    # 기존에 존재하는 이미지 불러오는 경우 이미지 이름 써주기 가능
+    image: mysql:8.0.33
+    container_name: mysql-container
+    # 포트 노출은 생략
+    # 환경 변수 설정 가능
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+    volumes:
+      - "./setup.sql:/docker-entrypoint-initdb.d/1.sql"
+    healthcheck:
+      # MySQL 서비스 정상 동작을 파악하기 위한 test 명령어 설정
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      # 10초 기다려보고
+      timeout: 10s
+      # 총 10번 재시도
+      retries: 10
+  # redis 서비스 이름 정하기
+  redis-service:
+    image: redis:latest
+    container_name: redis-container
+    healthcheck:
+      # redis 서비스 정상 동작을 파악하기 위한 test 명령어 설정
+      # https://stackoverflow.com/questions/67904609/how-do-you-perform-a-healthcheck-in-the-redis-docker-image
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      timeout: 10s
+      retries: 10
+networks:
+  my-network:
+    # 기본적으로 bridge로 잡히므로 내용 생략 가능
+    # driver: bridge
